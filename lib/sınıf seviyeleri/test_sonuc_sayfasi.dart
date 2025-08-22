@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../models/user_model.dart';
 
-class TestSonucSayfasi extends StatelessWidget {
+class TestSonucSayfasi extends StatefulWidget {
   final String sinifAdi;
   final String dersAdi;
   final String konuAdi;
@@ -51,14 +53,92 @@ class TestSonucSayfasi extends StatelessWidget {
     return (correctAnswers / questions.length) * 100;
   }
 
+  @override
+  State<TestSonucSayfasi> createState() => _TestSonucSayfasiState();
+}
+
+class _TestSonucSayfasiState extends State<TestSonucSayfasi> {
+  bool _isUpdating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateUserPerformance();
+  }
+
+  Future<void> _updateUserPerformance() async {
+    if (_isUpdating) return;
+
+    setState(() {
+      _isUpdating = true;
+    });
+
+    try {
+      final user = UserProvider.currentUser;
+      if (user != null) {
+        // Mevcut performans verilerini al
+        final updatedDersPerformanslari = Map<String, Map<String, double>>.from(
+          user.dersPerformanslari,
+        );
+
+        // Ders performansını güncelle
+        if (!updatedDersPerformanslari.containsKey(widget.dersAdi)) {
+          updatedDersPerformanslari[widget.dersAdi] = {};
+        }
+
+        // Sınıf seviyesi performansını güncelle
+        final sinifPerformanslari = Map<String, double>.from(
+          updatedDersPerformanslari[widget.dersAdi]!,
+        );
+        sinifPerformanslari[widget.sinifAdi] = widget.successRate;
+        updatedDersPerformanslari[widget.dersAdi] = sinifPerformanslari;
+
+        // Genel kullanım yüzdesini hesapla
+        double toplamPerformans = 0;
+        int toplamSinif = 0;
+
+        for (final ders in updatedDersPerformanslari.values) {
+          for (final performans in ders.values) {
+            toplamPerformans += performans;
+            toplamSinif++;
+          }
+        }
+
+        final yeniGenelKullanimYuzdesi = toplamSinif > 0
+            ? toplamPerformans / toplamSinif
+            : 0.0;
+
+        // Kullanıcıyı güncelle
+        final updatedUser = user.copyWith(
+          dersPerformanslari: updatedDersPerformanslari,
+          genelKullanimYuzdesi: yeniGenelKullanimYuzdesi,
+        );
+
+        UserProvider.setUser(updatedUser);
+
+        // SharedPreferences'a kaydet
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user', updatedUser.toJson().toString());
+      }
+    } catch (e) {
+      // Hata durumunda sessizce devam et
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUpdating = false;
+        });
+      }
+    }
+  }
+
   String _getSuccessMessage() {
-    if (successRate >= 90) {
+    if (widget.successRate >= 90) {
       return 'Mükemmel! Harika bir performans gösterdin! 🎉';
-    } else if (successRate >= 80) {
+    } else if (widget.successRate >= 80) {
       return 'Çok iyi! Başarılı bir sonuç elde ettin! 👏';
-    } else if (successRate >= 70) {
+    } else if (widget.successRate >= 70) {
       return 'İyi! Daha da geliştirebilirsin! 💪';
-    } else if (successRate >= 60) {
+    } else if (widget.successRate >= 60) {
       return 'Orta! Biraz daha çalışmaya ihtiyacın var! 📚';
     } else {
       return 'Bu konuyu tekrar çalışman gerekiyor! 🔄';
@@ -70,8 +150,9 @@ class TestSonucSayfasi extends StatelessWidget {
   }
 
   Color _getAnswerColor(int questionIndex, int optionIndex) {
-    final correctAnswer = questions[questionIndex]['correctAnswer'] as int;
-    final userAnswer = userAnswers[questionIndex];
+    final correctAnswer =
+        widget.questions[questionIndex]['correctAnswer'] as int;
+    final userAnswer = widget.userAnswers[questionIndex];
 
     if (optionIndex == correctAnswer) {
       return Colors.green;
@@ -89,7 +170,7 @@ class TestSonucSayfasi extends StatelessWidget {
           'Test Sonucu',
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: renk,
+        backgroundColor: widget.renk,
         automaticallyImplyLeading: false,
         elevation: 0,
       ),
@@ -99,10 +180,10 @@ class TestSonucSayfasi extends StatelessWidget {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              renk,
-              renk.withOpacity(0.8),
-              renk.withOpacity(0.6),
-              renk.withOpacity(0.4),
+              widget.renk,
+              widget.renk.withOpacity(0.8),
+              widget.renk.withOpacity(0.6),
+              widget.renk.withOpacity(0.4),
             ],
           ),
         ),
@@ -135,13 +216,17 @@ class TestSonucSayfasi extends StatelessWidget {
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            renk.withValues(alpha: 0.1),
-                            renk.withValues(alpha: 0.2),
+                            widget.renk.withValues(alpha: 0.1),
+                            widget.renk.withValues(alpha: 0.2),
                           ],
                         ),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(_getSuccessIcon(), size: 50, color: renk),
+                      child: Icon(
+                        _getSuccessIcon(),
+                        size: 50,
+                        color: widget.renk,
+                      ),
                     ),
                     const SizedBox(height: 16),
 
@@ -149,7 +234,10 @@ class TestSonucSayfasi extends StatelessWidget {
                     Text(
                       _getSuccessMessage(),
                       style: Theme.of(context).textTheme.headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.bold, color: renk),
+                          ?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: widget.renk,
+                          ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 20),
@@ -161,14 +249,17 @@ class TestSonucSayfasi extends StatelessWidget {
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [renk, renk.withValues(alpha: 0.8)],
+                          colors: [
+                            widget.renk,
+                            widget.renk.withValues(alpha: 0.8),
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Column(
                         children: [
                           Text(
-                            '${successRate.toInt()}%',
+                            '${widget.successRate.toInt()}%',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 48,
@@ -193,7 +284,7 @@ class TestSonucSayfasi extends StatelessWidget {
                         Expanded(
                           child: _buildStatCard(
                             'Doğru',
-                            correctAnswers.toString(),
+                            widget.correctAnswers.toString(),
                             Colors.green,
                             Icons.check_circle,
                           ),
@@ -202,7 +293,7 @@ class TestSonucSayfasi extends StatelessWidget {
                         Expanded(
                           child: _buildStatCard(
                             'Yanlış',
-                            wrongAnswers.toString(),
+                            widget.wrongAnswers.toString(),
                             Colors.red,
                             Icons.cancel,
                           ),
@@ -211,7 +302,7 @@ class TestSonucSayfasi extends StatelessWidget {
                         Expanded(
                           child: _buildStatCard(
                             'Boş',
-                            emptyAnswers.toString(),
+                            widget.emptyAnswers.toString(),
                             Colors.orange,
                             Icons.help,
                           ),
@@ -243,14 +334,14 @@ class TestSonucSayfasi extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.quiz, color: renk, size: 28),
+                        Icon(Icons.quiz, color: widget.renk, size: 28),
                         const SizedBox(width: 12),
                         Text(
                           'Cevap Anahtarı',
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
-                                color: renk,
+                                color: widget.renk,
                               ),
                         ),
                       ],
@@ -258,9 +349,9 @@ class TestSonucSayfasi extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // Sorular ve Cevaplar
-                    ...List.generate(questions.length, (index) {
-                      final question = questions[index];
-                      final userAnswer = userAnswers[index];
+                    ...List.generate(widget.questions.length, (index) {
+                      final question = widget.questions[index];
+                      final userAnswer = widget.userAnswers[index];
                       final correctAnswer = question['correctAnswer'] as int;
 
                       return _buildQuestionResult(
@@ -286,7 +377,7 @@ class TestSonucSayfasi extends StatelessWidget {
                       onPressed: () => Navigator.pop(context),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white.withValues(alpha: 0.9),
-                        foregroundColor: renk,
+                        foregroundColor: widget.renk,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(25),
@@ -310,7 +401,7 @@ class TestSonucSayfasi extends StatelessWidget {
                         Navigator.pop(context);
                       },
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: renk,
+                        backgroundColor: widget.renk,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                         shape: RoundedRectangleBorder(
@@ -398,13 +489,13 @@ class TestSonucSayfasi extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: renk.withValues(alpha: 0.1),
+                  color: widget.renk.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
                   'Soru $questionNumber',
                   style: TextStyle(
-                    color: renk,
+                    color: widget.renk,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
@@ -592,13 +683,13 @@ class TestSonucSayfasi extends StatelessWidget {
   }
 
   IconData _getSuccessIcon() {
-    if (successRate >= 90) {
+    if (widget.successRate >= 90) {
       return Icons.emoji_events;
-    } else if (successRate >= 80) {
+    } else if (widget.successRate >= 80) {
       return Icons.star;
-    } else if (successRate >= 70) {
+    } else if (widget.successRate >= 70) {
       return Icons.thumb_up;
-    } else if (successRate >= 60) {
+    } else if (widget.successRate >= 60) {
       return Icons.school;
     } else {
       return Icons.psychology;
