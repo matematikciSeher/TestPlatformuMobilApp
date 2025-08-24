@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../sınıf seviyeleri/sinif_seviyeleri_sayfasi.dart';
-import '../models/user_model.dart';
+import '../../../models/user_model.dart';
 import '../profile/profile_page.dart';
-import '../auth/login_page.dart';
+import '../auth/presentation/pages/login_page.dart';
 
 class Anasayfa extends StatelessWidget {
   const Anasayfa({super.key});

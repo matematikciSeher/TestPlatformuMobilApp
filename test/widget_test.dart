@@ -7,7 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:testplatformu/dersler/dersler_sayfasi.dart';
+import 'package:testplatformu/src/features/dersler/dersler_sayfasi.dart';
 
 import 'package:testplatformu/main.dart';
 

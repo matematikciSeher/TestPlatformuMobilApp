@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../models/user_model.dart';
-import '../anasayfa/anasayfa.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import '../../../../../models/user_model.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -32,14 +33,20 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // Simüle edilmiş giriş işlemi
-      await Future.delayed(const Duration(seconds: 1));
+      final credential = await fb_auth.FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _usernameController.text.trim(),
+        password: _passwordController.text,
+      );
 
-      // Demo kullanıcı verisi
+      final fbUser = credential.user!;
+      final displayName = fbUser.displayName;
+      final email = fbUser.email ?? _usernameController.text.trim();
+      final guessedName = displayName ?? email.split('@').first;
+
       final user = User(
-        id: '1',
-        username: _usernameController.text,
-        email: '${_usernameController.text}@example.com',
+        id: fbUser.uid,
+        username: guessedName,
+        email: email,
         dersPerformanslari: {
           'Matematik': {
             '9.sınıf': 75.0,
@@ -93,18 +100,13 @@ class _LoginPageState extends State<LoginPage> {
         genelKullanimYuzdesi: 78.5,
       );
 
-      // Kullanıcıyı kaydet
       UserProvider.setUser(user);
 
-      // SharedPreferences'a kaydet
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('user', user.toJson().toString());
 
       if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const Anasayfa()),
-        );
+        context.go('/anasayfa');
       }
     } catch (e) {
       if (mounted) {
@@ -188,12 +190,12 @@ class _LoginPageState extends State<LoginPage> {
                       key: _formKey,
                       child: Column(
                         children: [
-                          // Kullanıcı adı
+                          // E-posta
                           TextFormField(
                             controller: _usernameController,
                             decoration: InputDecoration(
-                              labelText: 'Kullanıcı Adı',
-                              prefixIcon: const Icon(Icons.person),
+                              labelText: 'E-posta',
+                              prefixIcon: const Icon(Icons.email),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -202,7 +204,11 @@ class _LoginPageState extends State<LoginPage> {
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
-                                return 'Kullanıcı adı gerekli';
+                                return 'E-posta gerekli';
+                              }
+                              final email = value.trim();
+                              if (!email.contains('@') || !email.contains('.')) {
+                                return 'Geçerli bir e-posta girin';
                               }
                               return null;
                             },
@@ -218,9 +224,7 @@ class _LoginPageState extends State<LoginPage> {
                               prefixIcon: const Icon(Icons.lock),
                               suffixIcon: IconButton(
                                 icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility
-                                      : Icons.visibility_off,
+                                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -266,10 +270,9 @@ class _LoginPageState extends State<LoginPage> {
                                       width: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
+                                        valueColor: AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
+                                        ),
                                       ),
                                     )
                                   : const Text(
@@ -281,31 +284,21 @@ class _LoginPageState extends State<LoginPage> {
                                     ),
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 16),
 
-                          // Demo bilgisi
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.blue[200]!),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.info, color: Colors.blue, size: 20),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    'Demo giriş için herhangi bir kullanıcı adı ve şifre kullanabilirsiniz.',
-                                    style: TextStyle(
-                                      color: Colors.blue,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('Hesabınız yok mu? '),
+                              TextButton(
+                                onPressed: _isLoading
+                                    ? null
+                                    : () {
+                                        context.go('/register');
+                                      },
+                                child: const Text('Kayıt Ol'),
+                              ),
+                            ],
                           ),
                         ],
                       ),

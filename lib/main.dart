@@ -1,11 +1,16 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'anasayfa/anasayfa.dart';
-import 'auth/login_page.dart';
+import 'package:testplatformu/firebase_options.dart';
+import 'package:testplatformu/src/core/routes/router_config.dart';
+import 'package:testplatformu/src/features/testPlatformu/presentation/pages/testPlatformuApp.dart';
 import 'models/user_model.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // Kullanıcı girişi kontrolü
   final prefs = await SharedPreferences.getInstance();
@@ -17,20 +22,15 @@ void main() async {
       // Basit bir JSON parse işlemi (gerçek uygulamada daha güvenli olmalı)
       final userMap = Map<String, dynamic>.from(
         Map.fromEntries(
-          userData
-              .replaceAll('{', '')
-              .replaceAll('}', '')
-              .split(',')
-              .map((e) {
-                final parts = e.split(':');
-                if (parts.length == 2) {
-                  final key = parts[0].trim().replaceAll('"', '');
-                  final value = parts[1].trim().replaceAll('"', '');
-                  return MapEntry(key, value);
-                }
-                return MapEntry('', '');
-              })
-              .where((e) => e.key.isNotEmpty),
+          userData.replaceAll('{', '').replaceAll('}', '').split(',').map((e) {
+            final parts = e.split(':');
+            if (parts.length == 2) {
+              final key = parts[0].trim().replaceAll('"', '');
+              final value = parts[1].trim().replaceAll('"', '');
+              return MapEntry(key, value);
+            }
+            return MapEntry('', '');
+          }).where((e) => e.key.isNotEmpty),
         ),
       );
 
@@ -98,35 +98,7 @@ void main() async {
       user = null;
     }
   }
+  final routers = await createRouter();
 
-  runApp(TestPlatformuApp(initialUser: user));
-}
-
-class TestPlatformuApp extends StatelessWidget {
-  final User? initialUser;
-
-  const TestPlatformuApp({super.key, this.initialUser});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Test Platformu',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6C63FF),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        fontFamily: 'Poppins',
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF6C63FF),
-          foregroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: true,
-        ),
-      ),
-      home: initialUser != null ? const Anasayfa() : const LoginPage(),
-    );
-  }
+  runApp(TestPlatformuApp(initialUser: user, routerConfig: routers));
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/user_model.dart';
-import '../auth/login_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import '../../../models/user_model.dart';
+import '../auth/presentation/pages/login_page.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -116,6 +118,32 @@ class ProfilePage extends StatelessWidget {
               ),
               const SizedBox(height: 24),
 
+              // Çıkış Yap butonu
+              SizedBox(
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: () => _logout(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF6C63FF),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  icon: const Icon(Icons.logout),
+                  label: const Text(
+                    'Çıkış Yap',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               // Ders performansları başlık
               const Text(
                 '📊 Ders Performansları',
@@ -155,9 +183,7 @@ class ProfilePage extends StatelessWidget {
     };
 
     final dersRenk = dersRenkleri[dersAdi] ?? const Color(0xFF6C63FF);
-    final ortalamaPerformans =
-        sinifPerformanslari.values.reduce((a, b) => a + b) /
-        sinifPerformanslari.length;
+    final ortalamaPerformans = sinifPerformanslari.values.reduce((a, b) => a + b) / sinifPerformanslari.length;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -274,7 +300,12 @@ class ProfilePage extends StatelessWidget {
             child: const Text('İptal'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('user');
+              try {
+                await fb_auth.FirebaseAuth.instance.signOut();
+              } catch (_) {}
               UserProvider.clearUser();
               Navigator.pushAndRemoveUntil(
                 context,
